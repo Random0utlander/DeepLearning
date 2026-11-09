@@ -32,7 +32,8 @@ class ProteinDataset(Dataset):
     - decode: Convert a tensor of token ids to a string of residues.
     """
 
-    def __init__(self, path_to_data):
+    def __init__(self, path_to_data = " "):
+
         # Set token and family mappings
         self.vocab = dict(zip(total_tokens, range(len(total_tokens))))
         self.fam_to_idx = dict(zip(FAMILIES, range(len(FAMILIES))))
@@ -70,7 +71,7 @@ class ProteinDataset(Dataset):
         return x
 
     def decode(self, tokens):
-        """Convert a tensor of token ids to a string of residues.
+        """Convert a tensor of token ids to a string of letters
 
         Only the 20 residues have a character: <BOS>, <EOS>, <PAD> and the IGNORE_INDEX of a
         shifted target are dropped, so decoding either x or x_shifted gives the protein back.

@@ -1,6 +1,3 @@
-<<<<<<< HEAD
- 
-=======
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -39,4 +36,3 @@ class MLP(nn.Module):
         return x
 
 
->>>>>>> 4a5cde33eea3dad900b75f0d51d00be1c486a73c

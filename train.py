@@ -43,16 +43,20 @@ def accuracy(ys, ts):
 #Tokenize the datasets
 train_dataset = TokenDataset(train_data, window_size=WINDOW_SIZE)
 val_dataset = TokenDataset(val_data, window_size=WINDOW_SIZE)
+test_dataset = TokenDataset(test_data, window_size=WINDOW_SIZE)
+
 
 #Create DataLoaders
 train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False)
 
 
 # number of training passses
 num_epochs = 5
 # store loss and accuracy for information
-train_losses, val_losses, train_accs, val_accs = [], [], [], []
+train_losses, val_losses, test_losses, train_accs, val_accs, test_accs = [], [], [], [], [], []
+
 
 print(f"Training for {num_epochs} epochs...\n Starting Loss should be around ln(23) ≈ 3.1 for the first epoch")
 # training loop
@@ -60,6 +64,7 @@ for e in range(num_epochs):
     
     #-----------------TRAINING-----------------------#
 
+    print("here")
     mlp.train()  # set model to training mode
 
     batch_train_loss, batch_train_acc, batch_count, num_examples = 0, 0, 0, 0
@@ -117,3 +122,31 @@ for e in range(num_epochs):
                                      val_accs[-1]))
     
 #Save the model?
+torch.save(mlp.state_dict(), "./state_dict.pt")
+
+
+for e in range(num_epochs) :
+     #-----------------TESTING-----------------------#
+     
+         #mlp.test()  # set model to test mode
+         
+         with torch.no_grad():  # disable gradient computation for validation
+             batch_test_loss, batch_test_acc, batch_count, num_examples = 0, 0, 0, 0
+             for x_test_batch, targets_test_batch in test_loader:    
+                 
+                 test_output = mlp(x_test_batch)
+
+                #store this later 
+
+                 # compute loss and accuracy
+                 batch_test_loss += F.cross_entropy(test_output, targets_val_batch, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
+
+                 batch_test_acc += accuracy(test_output, targets_test_batch)
+                 batch_count += 1
+                 num_examples += x_test_batch.size(0)
+     
+         # store loss and accuracy
+         test_losses.append(batch_test_loss / (num_examples))
+         test_accs.append(batch_val_acc / (num_examples))
+
+
