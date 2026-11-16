@@ -7,6 +7,10 @@ from protgen.data import ProteinDataset
 from protgen.data.make_tokens import TokenDataset
 from torch.utils.data import DataLoader
 from protgen.data import AA, FAMILIES, IGNORE_INDEX, special_tokens
+import math
+import numpy as np
+import random
+import matplotlib.pyplot as plt
 
 # Variables for the model
 VOCAB_SIZE = len(special_tokens) + len(AA)
@@ -141,10 +145,10 @@ torch.save(mlp.state_dict(), "./state_dict.pt")
 mlp.eval()  # set model to evaluation mode
 with torch.no_grad():  # disable gradient computation for validation
     batch_test_loss, batch_test_acc, batch_count, num_examples = 0, 0, 0, 0
+    print("running test")
     for x_test_batch, targets_test_batch in test_loader:
 
         test_output = mlp(x_test_batch)
-
         # store this later
 
         # compute loss and accuracy
@@ -155,7 +159,13 @@ with torch.no_grad():  # disable gradient computation for validation
         batch_test_acc += accuracy(test_output, targets_test_batch)
         batch_count += 1
         num_examples += x_test_batch.size(0)
-
 # store loss and accuracy
 test_losses.append(batch_test_loss / (num_examples))
 test_accs.append(batch_test_acc / (num_examples))
+test_perplexity = math.exp(test_losses[-1])
+
+print(
+    "Test Cost: %0.3f"
+    "\t Test acc: %0.3f"
+    "\t Test perplexity: %0.3f" % (test_losses[-1], test_accs[-1], test_perplexity)
+)
