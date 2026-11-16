@@ -9,9 +9,9 @@ class Transformer(nn.Module):
         super().__init__()
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
         self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
-        self.num_heads = 3
         self.dim_head = 4
-        self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q tem de ser = d_k
+        self.num_heads = dim_embedding // 4
+        self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q need to be = d_k
         self.K = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
         self.V = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
         self.norm_f=nn.LayerNorm(dim_embedding)
@@ -65,7 +65,7 @@ class Transformer(nn.Module):
 
         output_f = self.language_model_head(output_ffn)
 
-        return output_f
+        return output_f #(batch of proteins, max_seq_len, vocab_size)
 
     def feed_forward_network(self, x):
         # Feed-forward network dim=12 -> 50 -> 12; similiar to the MLP model, but with residual connection and layer normalization
