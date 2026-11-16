@@ -8,26 +8,48 @@ from protgen.data.make_tokens import TokenDataset
 from torch.utils.data import DataLoader
 from protgen.data import AA, FAMILIES, IGNORE_INDEX, special_tokens
 import math
-import numpy as np
-import random
 import matplotlib.pyplot as plt
 import os
 
-# Variables for the model
+# Vocabulary size is the number of unique tokens in the dataset, which includes special tokens and amino acids
 VOCAB_SIZE = len(special_tokens) + len(AA)
+# mlp with knowledge of 3 previous tokens
+WINDOW_SIZE = 3
+
+
+# Load the datasets
+train_data = ProteinDataset(path_to_data="./data/train.csv")
+val_data = ProteinDataset(path_to_data="./data/val.csv")
+test_data = ProteinDataset(path_to_data="./data/test.csv")
+
+# Tokenize the datasets
+train_dataset = TokenDataset(train_data, window_size=WINDOW_SIZE)
+val_dataset = TokenDataset(val_data, window_size=WINDOW_SIZE)
+test_dataset = TokenDataset(test_data, window_size=WINDOW_SIZE)
+
+
 DIM_EMBEDDING = 32
 NUM_HIDDEN = 128
-WINDOW_SIZE = 3
+
 
 os.makedirs("checkpoints", exist_ok=True)
 ckpt_path = f"checkpoints/model_emb{DIM_EMBEDDING}_hid{NUM_HIDDEN}.pt"
 
 torch.manual_seed(42)  # for reproducibility
 
-# Load the datasets
-train_data = ProteinDataset(path_to_data="./data/train.csv")
-val_data = ProteinDataset(path_to_data="./data/val.csv")
-test_data = ProteinDataset(path_to_data="./data/test.csv")
+
+def accuracy(ys, ts):
+    # Finding the token with the highest probability for each sample in the batch
+    predictions = torch.argmax(ys, dim=1)
+    # Comparing with the target and counting the number of correct predictions
+    correct_prediction = (predictions == ts).sum().item()
+    # Return counter of correct predictions
+    return float(correct_prediction)
+
+
+def train_mlp():
+    return
+
 
 # Create the MLP model
 mlp = MLP(
@@ -42,19 +64,6 @@ optimizer = optim.Adam(mlp.parameters(), lr=0.001)
 
 
 # Accuracy function
-def accuracy(ys, ts):
-    # Finding the token with the highest probability for each sample in the batch
-    predictions = torch.argmax(ys, dim=1)
-    # Comparing with the target and counting the number of correct predictions
-    correct_prediction = (predictions == ts).sum().item()
-    # Return counter of correct predictions
-    return float(correct_prediction)
-
-
-# Tokenize the datasets
-train_dataset = TokenDataset(train_data, window_size=WINDOW_SIZE)
-val_dataset = TokenDataset(val_data, window_size=WINDOW_SIZE)
-test_dataset = TokenDataset(test_data, window_size=WINDOW_SIZE)
 
 
 # Create DataLoaders
@@ -186,6 +195,8 @@ with torch.no_grad():  # disable gradient computation for validation
         batch_count += 1
         num_examples += x_test_batch.size(0)
 # store loss and accuracy
+
+
 test_losses.append(batch_test_loss / (num_examples))
 test_accs.append(batch_test_acc / (num_examples))
 test_perplexity = math.exp(test_losses[-1])
@@ -207,10 +218,10 @@ entropy = -torch.sum(
 )  # torch log has natural log just like cross entropy loss
 
 
-#print("Token probabilities in the training set:")
-#for i, p in enumerate(probability_token):
+# print("Token probabilities in the training set:")
+# for i, p in enumerate(probability_token):
 #    print(f"Token {i}: {p:.3f}")
-#print(f"Entropy: {entropy:.3f}")
+# print(f"Entropy: {entropy:.3f}")
 
 plt.plot(range(0, num_epochs), train_losses, label="Train Loss")
 plt.plot(range(0, num_epochs), val_losses, label="Validation Loss")
