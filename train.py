@@ -11,12 +11,18 @@ import math
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import os
 
 # Variables for the model
 VOCAB_SIZE = len(special_tokens) + len(AA)
 DIM_EMBEDDING = 32
 NUM_HIDDEN = 128
 WINDOW_SIZE = 3
+
+os.makedirs("checkpoints", exist_ok=True)
+ckpt_path = f"checkpoints/model_emb{DIM_EMBEDDING}_hid{NUM_HIDDEN}.pt"
+
+torch.manual_seed(42)  # for reproducibility
 
 # Load the datasets
 train_data = ProteinDataset(path_to_data="./data/train.csv")
@@ -74,11 +80,11 @@ print(
     f"Training for {num_epochs} epochs...\n Starting Loss should be around ln(23) ≈ 3.1 for the first epoch"
 )
 # training loop
+best_val_loss = float("inf")
+best_epoch = 0
 for e in range(num_epochs):
 
     # -----------------TRAINING-----------------------#
-
-    print("here")
     mlp.train()  # set model to training mode
 
     batch_train_loss, batch_train_acc, batch_count, num_examples = 0, 0, 0, 0
@@ -128,6 +134,21 @@ for e in range(num_epochs):
     val_losses.append(batch_val_loss / (num_examples))
     val_accs.append(batch_val_acc / (num_examples))
 
+    if val_losses[-1] < best_val_loss:
+        best_val_loss = val_losses[-1]
+        best_epoch = e
+        torch.save(
+            {
+                "weights": mlp.state_dict(),
+                "embedding_size": DIM_EMBEDDING,
+                "hidden_units": NUM_HIDDEN,
+                "window_size": WINDOW_SIZE,
+                "epoch": best_epoch,
+                "loss": best_val_loss,
+            },
+            ckpt_path,
+        )
+
     if e % 1 == 0:
         print(
             "Epoch %i, "
@@ -138,8 +159,13 @@ for e in range(num_epochs):
             % (e, train_losses[-1], train_accs[-1], val_losses[-1], val_accs[-1])
         )
 
-# Save the model?
-torch.save(mlp.state_dict(), "./state_dict.pt")
+print(f"Best validation loss: {best_val_loss:.3f} at epoch {best_epoch}")
+
+ckpt = torch.load(ckpt_path, weights_only=True)
+print(f"Loaded checkpoint from epoch {ckpt['epoch']} with loss {ckpt['loss']:.3f}")
+mlp.load_state_dict(ckpt["weights"])
+
+# mlp.load_state_dict(torch.load("./best_state_dict.pt"))
 
 # -----------------TESTING-----------------------#
 mlp.eval()  # set model to evaluation mode
@@ -169,3 +195,28 @@ print(
     "\t Test acc: %0.3f"
     "\t Test perplexity: %0.3f" % (test_losses[-1], test_accs[-1], test_perplexity)
 )
+
+# for measure
+counts = torch.bincount(train_dataset.targets)
+probability_token = counts.float() / counts.sum()
+probability_token = probability_token[
+    probability_token > 0
+]  # filter out zero probabilities
+entropy = -torch.sum(
+    probability_token * torch.log(probability_token)
+)  # torch log has natural log just like cross entropy loss
+
+
+#print("Token probabilities in the training set:")
+#for i, p in enumerate(probability_token):
+#    print(f"Token {i}: {p:.3f}")
+#print(f"Entropy: {entropy:.3f}")
+
+plt.plot(range(0, num_epochs), train_losses, label="Train Loss")
+plt.plot(range(0, num_epochs), val_losses, label="Validation Loss")
+# plt.plot(entropy * torch.ones(num_epochs), label="Entropy", linestyle="--")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Training and Validation Loss")
+plt.legend()
+plt.savefig("results/mlp_loss_curves.png")
