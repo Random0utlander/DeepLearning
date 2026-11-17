@@ -1,4 +1,4 @@
-from train import train_mlp, test_mlp
+from train import train_mlp
 
 dim_embedding = [16, 32, 64]
 batch_size = [64, 128, 256, 512]
@@ -6,6 +6,7 @@ num_hidden = [64, 128, 256]
 num_epochs = 10
 
 
+# Sweep through the hyperparameters and find the best combination
 def sweep_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
     best_val_loss = float("inf")
     best_hyperparams = None
@@ -28,6 +29,8 @@ def sweep_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
     return best_val_loss, best_hyperparams
 
 
+# if __name__ == "__main__" makes sure that the code block is only executed
+# when the script is run directly, not when imported as a module.
 if __name__ == "__main__":
     best_val_loss, best_hyperparams = sweep_mlp(
         dim_embedding=dim_embedding,

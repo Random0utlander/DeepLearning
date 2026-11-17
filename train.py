@@ -30,10 +30,11 @@ test_dataset = TokenDataset(test_data, window_size=WINDOW_SIZE)
 
 dim_embedding = 32
 num_hidden = 128
-batch_size = 512
-num_epochs = 5
+batch_size = 256
+num_epochs = 10
 
-os.makedirs("checkpoints", exist_ok=True)
+# creation of checkpoints directory if it doesn't exist
+os.makedirs("checkpoints/mlp", exist_ok=True)
 
 
 # Accuracy function
@@ -46,6 +47,7 @@ def accuracy(ys, ts):
     return float(correct_prediction)
 
 
+# train_mlp function trains the MLP model with the given hyperparameters and returns the trained model, training losses, validation losses, and path.
 def train_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
 
     torch.manual_seed(42)  # for reproducibility
@@ -56,7 +58,7 @@ def train_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
 
     # Define the checkpoint path for saving the model
     ckpt_path = (
-        f"checkpoints/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
+        f"checkpoints/mlp/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
     )
 
     # store loss and accuracy for information
@@ -240,4 +242,4 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss")
     plt.legend()
-    plt.savefig("results/mlp_loss_curves.png")
+    plt.savefig("results/mlp/mlp_loss_curves.png")
