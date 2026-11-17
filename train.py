@@ -35,9 +35,8 @@ NUM_HIDDEN = 128
 os.makedirs("checkpoints", exist_ok=True)
 ckpt_path = f"checkpoints/model_emb{DIM_EMBEDDING}_hid{NUM_HIDDEN}.pt"
 
-torch.manual_seed(42)  # for reproducibility
 
-
+# Accuracy function
 def accuracy(ys, ts):
     # Finding the token with the highest probability for each sample in the batch
     predictions = torch.argmax(ys, dim=1)
@@ -47,23 +46,22 @@ def accuracy(ys, ts):
     return float(correct_prediction)
 
 
-def train_mlp():
-    return
+def train_mlp(DIM_EMBEDDING, NUM_HIDDEN, batch_size=512, num_epochs=5):
 
+    torch.manual_seed(42)  # for reproducibility
 
-# Create the MLP model
-mlp = MLP(
-    vocab_size=VOCAB_SIZE,
-    dim_embedding=DIM_EMBEDDING,
-    num_hidden=NUM_HIDDEN,
-    window_size=WINDOW_SIZE,
-)
+    # Create the MLP model
+    mlp = MLP(
+        vocab_size=VOCAB_SIZE,
+        dim_embedding=DIM_EMBEDDING,
+        num_hidden=NUM_HIDDEN,
+        window_size=WINDOW_SIZE,
+    )
 
-# Optimizer function
-optimizer = optim.Adam(mlp.parameters(), lr=0.001)
+    # Optimizer function
+    optimizer = optim.Adam(mlp.parameters(), lr=0.001)
 
-
-# Accuracy function
+    return mlp
 
 
 # Create DataLoaders
