@@ -1,0 +1,11 @@
+Model           Test loss Test accuracy   Test perplexity
+MLP 32/256/128  2.328	  0.299	          10.25
+
+Information:
+    -> The best model was chosen based on validation loss (check sweep_log_mlp), and the test set was evaluated on it
+    -> The best validation loss of the winner: 2.329
+    -> The settings and the seed (42).
+    -> Embedding size 32, hidden units 256, window 3, one hidden layer with ReLU. Adam, learning rate 0.001, batch size 128, 10 epochs, best epoch 8
+    -> Path of the model (models/mlp_best.pt)
+
+    
