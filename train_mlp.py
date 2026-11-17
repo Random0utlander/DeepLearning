@@ -34,7 +34,7 @@ batch_size = 128
 num_epochs = 10
 
 # creation of checkpoints directory if it doesn't exist
-os.makedirs("checkpoints/mlp/tanh", exist_ok=True)
+os.makedirs("checkpoints/mlp", exist_ok=True)
 
 
 # Accuracy function
@@ -56,8 +56,8 @@ def train_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
     train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size, shuffle=False)
 
-    # Define the checkpoint path for saving the model
-    ckpt_path = f"checkpoints/mlp/tanh/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
+    # Define the checkpoint path for saving the model; to then put it as mlp_best.pt, move it to the models folder under that name
+    ckpt_path = f"checkpoints/mlp/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
 
     # store loss and accuracy for information
     train_losses, val_losses, train_accs, val_accs = (
