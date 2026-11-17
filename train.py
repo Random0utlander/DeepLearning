@@ -148,20 +148,9 @@ def train_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
                     ckpt_path,
                 )
 
-        if e % 1 == 0:
-            print(
-                "Epoch %i, "
-                "Train Cost: %0.3f"
-                "\t Train Acc: %0.3f"
-                "\tVal Cost: %0.3f"
-                "\t Val acc: %0.3f"
-                % (e, train_losses[-1], train_accs[-1], val_losses[-1], val_accs[-1])
-            )
-
     print(f"Best validation loss: {best_val_loss:.3f} at epoch {best_epoch}")
 
     ckpt = torch.load(ckpt_path, weights_only=True)
-    print(f"Loaded checkpoint from epoch {ckpt['epoch']} with loss {ckpt['loss']:.3f}")
     mlp.load_state_dict(ckpt["weights"])
 
     return mlp, train_losses, val_losses, ckpt_path
