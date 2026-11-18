@@ -9,7 +9,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
         self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
-        self.dim_head = 4
+        self.dim_head = 16
         self.num_heads = dim_embedding // self.dim_head
         self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q need to be = d_k
         self.K = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
@@ -68,7 +68,7 @@ class Transformer(nn.Module):
         return output_f #(batch of proteins, max_seq_len, vocab_size)
 
     def feed_forward_network(self, x):
-        # Feed-forward network dim=12 -> 50 -> 12; similiar to the MLP model, but with residual connection and layer normalization
+        # Feed-forward network dim=64 -> 256 -> 64; similiar to the MLP model, but with residual connection and layer normalization
         ffn_output = self.ffn1(x)
 
         ffn_output = nn.ReLU()(ffn_output)
