@@ -3,14 +3,14 @@ from torch import nn, softmax
 import math
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size=23, dim_embedding=12, num_hidden=50, max_seq_len=129):
+    def __init__(self, vocab_size=23, dim_embedding=64, num_hidden=256, max_seq_len=129):
         # a causal decoder-only multi-head attention Transformer model, I was doing single head attention but the objective is multi.head attention 
         # see if it necessary to add dropout in case of overfitting, but for now I will not add it
         super().__init__()
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
         self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
         self.dim_head = 4
-        self.num_heads = dim_embedding // 4
+        self.num_heads = dim_embedding // self.dim_head
         self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q need to be = d_k
         self.K = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
         self.V = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
@@ -80,18 +80,3 @@ class Transformer(nn.Module):
         ffn_output_f = self.norm_ffn(ffn_output) # Second layer normalization
 
         return ffn_output_f
-
-
-#Chatgpt code, just for verification of the dimensions, I will take it out later
-model = Transformer()
-
-# Batch fictício: 32 proteínas com 129 tokens cada
-x = torch.randint(0, 23, (32, 129))
-
-# Verificar embeddings
-embeddings = model.embeddings(x)
-print("Embeddings:", embeddings.shape)
-
-# Verificar output final do Transformer
-output = model(x)
-print("Transformer output:", output.shape)
