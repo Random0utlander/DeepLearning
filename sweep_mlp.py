@@ -1,4 +1,4 @@
-from train import train_mlp
+from train_mlp import train_mlp
 
 dim_embedding = [16, 32, 64]
 batch_size = [64, 128, 256, 512]
