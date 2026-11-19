@@ -1,5 +1,5 @@
 import torch
-from torch.mtia import init
+from torch.nn import init
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Parameter
@@ -9,27 +9,26 @@ import math
 
 class Classifier(nn.Module):
 
-    def __init__(self, backbone, num_features, num_hidden=128, num_output=1):
+    def __init__(self, backbone, num_features=129*12, num_hidden=128, num_output=3):
         super(Classifier, self).__init__()  
         
-        self.backbone = backbone
-        self.head = nn.Sequential(
-            # input layer
-            Parameter(init.xavier_normal_(torch.Tensor(num_hidden, num_features))),
-            Parameter(init.constant_(torch.Tensor(num_hidden), 0)),
-            # hidden layer
-            Parameter(init.xavier_normal_(torch.Tensor(num_output, num_hidden))),
-            Parameter(init.constant_(torch.Tensor(num_output), 0)),
-            # define activation function in constructor
-            torch.nn.ELU()
-        )
+        self.backbone = backbone #Transformer 
 
-        for p in self.backbone.parameter():
+        # input layer
+        self.W_1 = Parameter(init.xavier_normal_(torch.Tensor(num_hidden, num_features)))
+        self.b_1 = Parameter(init.constant_(torch.Tensor(num_hidden), 0))
+        # hidden layer
+        self.W_2 = Parameter(init.xavier_normal_(torch.Tensor(num_output, num_hidden)))
+        self.b_2 = Parameter(init.constant_(torch.Tensor(num_output), 0))
+        # define activation function in constructor
+        self.activation = torch.nn.ELU()
+
+        for p in self.backbone.parameters():
             p.requires_grad = False
 
         self._captured = {}
-        self.backbone.feed_forward_network.register_foward_hook(
-            lambda model, input, output: self._captured.__setitem__("hidden",output)
+        self.backbone.language_model_head.register_forward_pre_hook(
+            lambda model, input: self._captured.__setitem__("hidden",input[0])
         )
 
     def train(self, mode=True):
@@ -41,7 +40,8 @@ class Classifier(nn.Module):
         with torch.no_grad():    
             self.backbone(x)
         hidden = self._captured["hidden"]
-
-        #pool
-        
+        x = hidden.flatten(start_dim=1)
+        x = F.linear(x, self.W_1, self.b_1)
+        x = self.activation(x)
+        x = F.linear(x, self.W_2, self.b_2)        
         return x
