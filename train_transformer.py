@@ -34,7 +34,7 @@ def noam(d_model, warmup):
         return d_model ** -0.5 * min(step ** -0.5, step * warmup ** -1.5)
     return f
 
-def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim_head=DIM_HEAD, num_epochs=20,seed =67):
+def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim_head=DIM_HEAD, num_epochs=20,seed =67, best=False):
 
     torch.manual_seed(seed) # for reproducibility ;)
 
@@ -79,6 +79,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim
         f"emb{dim_embedding}_hid{num_hidden}_"
         f"batch{batch_size}_drp{dropout}_seed{seed}.pt"
     )
+    if best : ckpt_path = "./src/protgen/models/transformer_best.pt"
     # store loss and accuracy for information
     train_losses, val_losses, train_accs, val_accs = (
             [],
@@ -301,6 +302,9 @@ if __name__ == "__main__":
         num_hidden=NUM_HIDDEN,
         batch_size=BATCH_SIZE,
         num_epochs=NUM_EPOCHS,
+        best=True,
+        dropout=DROPOUT,
+        dim_head=DIM_HEAD
     )
     test_loss, test_acc, test_perplexity = test_transformer(ckpt_path)
 
