@@ -37,6 +37,8 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
     if device.type == "cuda":
             torch.cuda.manual_seed_all(seed)
 
+        
+    print(f"Is bf16 suported? {torch.cuda.is_bf16_supported()}")
     print(f"Training on: {device}")
 
     # DataLoaders
@@ -101,7 +103,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
 
             with torch.autocast(
                 device_type=device.type,
-                dtype=torch.float16,
+                dtype= torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32,
             ):
 
                 optimizer.zero_grad()
@@ -137,7 +139,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
 
                 with torch.autocast(
                     device_type=device.type,
-                    dtype=torch.float16,
+                    dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32,
                 ):
                     logits= transformer(x) # (batch of proteins, max_seq_len, vocab_size)
                     logits_reshaped= logits.reshape(-1, logits.size(-1)) # (batch of proteins * max_seq_len, vocab_size)
