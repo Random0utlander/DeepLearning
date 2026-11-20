@@ -3,7 +3,7 @@ from torch import nn, softmax
 import math
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size=23, dim_embedding=64, num_hidden=256, max_seq_len=129,dropout=0.1):
+    def __init__(self, vocab_size=23, dim_embedding=64, num_hidden=256, max_seq_len=129,dropout=0.1, dim_head=16):
         # a causal decoder-only multi-head attention Transformer model, I was doing single head attention but the objective is multi.head attention 
         # see if it necessary to add dropout in case of overfitting, but for now I will not add it
         super().__init__()
@@ -11,7 +11,7 @@ class Transformer(nn.Module):
 
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
         self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
-        self.dim_head = 16
+        self.dim_head = dim_head
         self.num_heads = dim_embedding // self.dim_head
         
         assert dim_embedding % self.dim_head == 0, (

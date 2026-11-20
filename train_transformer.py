@@ -9,12 +9,13 @@ import os
 import matplotlib.pyplot as plt
 from protgen.data.make_data import IGNORE_INDEX
 from torch.optim.lr_scheduler import LambdaLR
+from src.DashBoard import TrainingDashboard
 
 #Hyperparameters
 DIM_EMBEDDING = 256
 NUM_HIDDEN = 1024
 BATCH_SIZE = 16
-NUM_EPOCHS = 15
+NUM_EPOCHS = 100
 DROPOUT= 0.1
 
 #Load the datasets
@@ -35,6 +36,8 @@ def noam(d_model, warmup):
 def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num_epochs=20,seed =67):
 
     torch.manual_seed(seed) # for reproducibility ;)
+
+    dashboard = TrainingDashboard(num_epochs)
 
    
     # ---------------- DEVICE ---------------- #
@@ -113,8 +116,12 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num
         # -----------------TRAINING-----------------------#
         transformer.train()
 
+        # Dashboard Update rate
+        update_every = max(1, len(train_loader) // 50)
+
+
         train_loss_accumulated, train_token_count, train_accuracy, num_tokens = 0.0, 0, 0, 0
-        for x, x_shifted, _ , _ in train_loader:
+        for batch_idx,( x, x_shifted, _ , _) in enumerate(train_loader):
 
             x = x.to(device, non_blocking=True)
             x_shifted = x_shifted.to(device, non_blocking=True)
@@ -143,6 +150,17 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num
 
             train_loss_accumulated += loss.item() * valid_tokens
             train_token_count += valid_tokens
+
+            #Dashboard update 
+            if (batch_idx + 1) % update_every == 0 or batch_idx + 1 == len(train_loader):
+                dashboard.update(
+                    epoch=e + 1,
+                    batch=batch_idx + 1,
+                    total_batches=len(train_loader),
+                    train_loss=train_loss_accumulated / train_token_count,
+                    val_loss=val_losses[-1] if val_losses else None,
+                    status="TRAINING"
+                )
 
 
         train_losses.append(train_loss_accumulated / train_token_count)
@@ -192,11 +210,12 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num
                             },
                             ckpt_path,
                         )
-        print(
+        """print(
             f"Epoch {e+1}/{num_epochs} | "
             f"Train loss: {train_losses[-1]:.4f} | "
             f"Val loss: {val_losses[-1]:.4f}"
-        )
+        )"""
+
 
     print(f"Best validation loss: {best_val_loss:.3f} at epoch {best_epoch}")
     
@@ -293,10 +312,7 @@ if __name__ == "__main__":
         probability_token * torch.log(probability_token)
     )  # torch log has natural log just like cross entropy loss
 
-    # print("Token probabilities in the training set:")
-    # for i, p in enumerate(probability_token):
-    #    print(f"Token {i}: {p:.3f}")
-    # print(f"Entropy: {entropy:.3f}")
+    print(f"Entropy: {entropy:.3f}")
 
     # -----------------PLOT-----------------------#
     plt.plot(range(0, NUM_EPOCHS), train_losses, label="Train Loss")
