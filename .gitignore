@@ -78,6 +78,9 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Model sweep Checkpoints
+checkpoints/
+
 # IPython
 profile_default/
 ipython_config.py

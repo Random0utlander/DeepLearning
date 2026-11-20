@@ -10,10 +10,11 @@ import matplotlib.pyplot as plt
 from protgen.data.make_data import IGNORE_INDEX
 
 #Hyperparameters
-DIM_EMBEDDING = 64
-NUM_HIDDEN = 256
-BATCH_SIZE = 32
-NUM_EPOCHS = 20
+DIM_EMBEDDING = 256
+NUM_HIDDEN = 1024
+BATCH_SIZE = 16
+NUM_EPOCHS = 10
+LEARNING_RATE = 0.001
 
 #Load the datasets
 train_data = ProteinDataset(path_to_data="./data/train.csv")
@@ -24,7 +25,7 @@ test_data = ProteinDataset(path_to_data="./data/test.csv")
 os.makedirs("checkpoints/transformer", exist_ok=True)
 
 
-def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=0.001, num_epochs=20,seed =67):
+def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNING_RATE, num_epochs=20,seed =67):
 
     torch.manual_seed(seed) # for reproducibility ;)
 
@@ -92,7 +93,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=0.001,
         # -----------------TRAINING-----------------------#
         transformer.train()
 
-        train_loss_accumulated, val_token_count, train_accuracy, num_tokens = 0.0, 0, 0, 0
+        train_loss_accumulated, train_token_count, train_accuracy, num_tokens = 0.0, 0, 0, 0
         for x, x_shifted, _ , _ in train_loader:
 
             x = x.to(device, non_blocking=True)
@@ -119,26 +120,17 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=0.001,
                 ).sum().item()
 
             train_loss_accumulated += loss.item() * valid_tokens
-            val_token_count += valid_tokens
+            train_token_count += valid_tokens
 
-            """
-            #Accuracy to time consuming for sweep
-            #necessary to exclude padding
-            targets_masked = targets[targets != -1]
-            logits_masked = logits_reshaped[targets != -1]
-            train_next_token_accuracy = (logits_masked.argmax(dim=-1) == targets_masked).float().mean().item()
-            train_accuracy += train_next_token_accuracy 
-            num_tokens += targets_masked.size(0)
-            """
 
-        train_losses.append(train_loss_accumulated / val_token_count)
-        #train_accs.append(train_accuracy / num_tokens)
+        train_losses.append(train_loss_accumulated / train_token_count)
+
             
         # -----------------VALIDATION-----------------------#
         transformer.eval()
 
         with torch.no_grad():
-            val_loss_accumulated, val_token_count, val_accuracy, num_tokens = 0.0, 0, 0, 0
+            val_loss_accumulated, train_token_count, val_accuracy, num_tokens = 0.0, 0, 0, 0
             for x, x_shifted, _ , _ in val_loader:
                 x = x.to(device, non_blocking=True)
                 x_shifted = x_shifted.to(device, non_blocking=True)
@@ -157,24 +149,16 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=0.001,
                         ).sum().item()
 
                     val_loss_accumulated += loss.item()* valid_tokens
-                    val_token_count += valid_tokens
+                    train_token_count += valid_tokens
 
-                """
-                #Accuracy to time consuming for sweep
-                #same as train, necessary to exclude padding
-                targets_masked = targets[targets != -1]
-                logits_masked = logits_reshaped[targets != -1]
-                val_next_token_accuracy = (logits_masked.argmax(dim=-1) == targets_masked).float().mean().item()
-                val_accuracy += val_next_token_accuracy 
-                num_tokens += targets_masked.size(0)
-                """
-            val_losses.append(val_loss_accumulated / val_token_count)
-            #val_accs.append(val_accuracy / num_tokens)
+        
+            val_losses.append(val_loss_accumulated / train_token_count)
+
 
         #Saving checkpoints until finding best hyperparameters
         if val_losses[-1] < best_val_loss:
                         best_val_loss = val_losses[-1]
-                        best_epoch = e
+                        best_epoch = e + 1 
                         torch.save(
                             {
                                 "weights": transformer.state_dict(),
@@ -241,8 +225,12 @@ def test_transformer(ckpt_path):
             #same as train, necessary to exclude padding
             targets_masked = targets[targets != -1]
             logits_masked = logits_reshaped[targets != -1]
-            test_next_token_accuracy = (logits_masked.argmax(dim=-1) == targets_masked).float().mean().item()
-            test_accuracy += test_next_token_accuracy
+            correct_tokens = (
+                    logits_masked.argmax(dim=-1) == targets_masked
+                            ).sum().item()
+
+            test_accuracy += correct_tokens
+
             num_tokens += targets_masked.size(0)
 
             test_loss_accumulated += loss.item()*targets_masked.size(0)
@@ -254,7 +242,7 @@ def test_transformer(ckpt_path):
     print(
             "Test Cost: %0.3f"
             "\t Test acc: %0.3f"
-            "\t Test perplexity: %0.3f" % (test_loss, test_accuracy, test_perplexity)
+            "\t Test perplexity: %0.3f" % (test_loss, test_acc, test_perplexity)
         )
     
     return test_loss, test_acc, test_perplexity
