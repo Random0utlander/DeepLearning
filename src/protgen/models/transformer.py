@@ -7,13 +7,22 @@ class Transformer(nn.Module):
         # a causal decoder-only multi-head attention Transformer model, I was doing single head attention but the objective is multi.head attention 
         # see if it necessary to add dropout in case of overfitting, but for now I will not add it
         super().__init__()
+
+
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
         self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
         self.dim_head = 16
         self.num_heads = dim_embedding // self.dim_head
+        
+        assert dim_embedding % self.dim_head == 0, (
+           "dim_embedding must be divisible by dim_head"
+            )
+        
+        #Atention
         self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q need to be = d_k
         self.K = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
         self.V = nn.Linear(dim_embedding, self.dim_head * self.num_heads)
+        
         self.norm_f=nn.LayerNorm(dim_embedding)
         self.output_projection= nn.Linear(dim_embedding, dim_embedding)
         self.ffn1= nn.Linear(dim_embedding, num_hidden)
