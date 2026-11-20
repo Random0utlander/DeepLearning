@@ -57,7 +57,9 @@ def train_mlp(dim_embedding, num_hidden, batch_size, num_epochs):
     val_loader = DataLoader(val_dataset, batch_size, shuffle=False)
 
     # Define the checkpoint path for saving the model; to then put it as mlp_best.pt, move it to the models folder under that name
-    ckpt_path = f"checkpoints/mlp/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
+    ckpt_path = (
+        f"checkpoints/mlp/model_emb{dim_embedding}_hid{num_hidden}_batch{batch_size}.pt"
+    )
 
     # store loss and accuracy for information
     train_losses, val_losses, train_accs, val_accs = (
@@ -194,6 +196,11 @@ def test_mlp(ckpt_path):
 
     test_loss = batch_test_loss / (num_examples)
     test_acc = batch_test_acc / (num_examples)
+
+    # Perplexity is a common metric in language modeling that measures how well
+    # a probability distribution predicts a sample.Lower perplexity indicates better performance.
+    # A perplexity of 20 means that, on average, the model is as uncertain as
+    # if it were choosing among roughly 20 possibilities for each next amino-acid token.
     test_perplexity = math.exp(test_loss)
 
     print(
@@ -230,7 +237,7 @@ if __name__ == "__main__":
     # print("Token probabilities in the training set:")
     # for i, p in enumerate(probability_token):
     #    print(f"Token {i}: {p:.3f}")
-    # print(f"Entropy: {entropy:.3f}")
+    print(f"Entropy: {entropy:.3f}")
 
     # -----------------PLOT-----------------------#
     plt.plot(range(0, num_epochs), train_losses, label="Train Loss")
