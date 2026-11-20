@@ -15,7 +15,8 @@ from src.DashBoard import TrainingDashboard
 DIM_EMBEDDING = 256
 NUM_HIDDEN = 1024
 BATCH_SIZE = 16
-NUM_EPOCHS = 100
+NUM_EPOCHS = 200
+DIM_HEAD = 16
 DROPOUT= 0.1
 
 #Load the datasets
@@ -33,7 +34,7 @@ def noam(d_model, warmup):
         return d_model ** -0.5 * min(step ** -0.5, step * warmup ** -1.5)
     return f
 
-def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num_epochs=20,seed =67):
+def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim_head=DIM_HEAD, num_epochs=20,seed =67):
 
     torch.manual_seed(seed) # for reproducibility ;)
 
@@ -90,7 +91,8 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num
     transformer= Transformer(
         dim_embedding=dim_embedding,
         num_hidden=num_hidden,
-        dropout=dropout
+        dropout=dropout,
+        dim_head=dim_head
         ).to(device)
 
     #Loss function
@@ -207,6 +209,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num
                                 "epoch": best_epoch,
                                 "dropout": dropout,
                                 "loss": best_val_loss,
+                                "head_dim": dim_head
                             },
                             ckpt_path,
                         )

@@ -8,17 +8,22 @@ from train_transformer import train_transformer
 
 def run_sweep():
 
-    # Hyperparameter search space
+    """# Hyperparameter search space
     embedding_dims = [32, 64, 128, 256]
     hidden_dims = [128, 256, 512, 1024]
     batch_sizes = [16, 32, 64, 128]
     learning_rates = [0.0001, 0.0005, 0.001]
+"""
+    embedding_dims = [256]
+    hidden_dims = [1024]
+    batch_sizes = [16]
+    dim_head = [4,8,16,32,64,128]
 
     experiments = list(product(
         embedding_dims,
         hidden_dims,
         batch_sizes,
-        learning_rates
+        dim_head
     ))
 
     print(f"Total experiments: {len(experiments)}")
@@ -27,9 +32,9 @@ def run_sweep():
 
     results = []
 
-    results_file = "results/transformer/sweep_results.csv"
+    results_file = "results/transformer/sweep_results_heads.csv"
 
-    for i, (emb, hidden, batch, lr) in enumerate(experiments):
+    for i, (emb, hidden, batch, head) in enumerate(experiments):
 
         print(f"\nExperiment {i+1}/{len(experiments)}")
 
@@ -40,8 +45,8 @@ def run_sweep():
                     dim_embedding=emb,
                     num_hidden=hidden,
                     batch_size=batch,
-                    num_epochs=5,
-                    learning_rate=lr
+                    num_epochs=25,
+                    dim_head=head
                 )
             )
 
@@ -52,7 +57,7 @@ def run_sweep():
                 "embedding": emb,
                 "hidden": hidden,
                 "batch_size": batch,
-                "lr": lr,
+                "head_dim": head,
                 "best_val_loss": best_loss,
                 "best_epoch": best_epoch
             }
