@@ -3,7 +3,7 @@ from torch import nn, softmax
 import math
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size=23, dim_embedding=64, num_hidden=256, max_seq_len=129):
+    def __init__(self, vocab_size=23, dim_embedding=64, num_hidden=256, max_seq_len=129,dropout=0.1):
         # a causal decoder-only multi-head attention Transformer model, I was doing single head attention but the objective is multi.head attention 
         # see if it necessary to add dropout in case of overfitting, but for now I will not add it
         super().__init__()
@@ -17,6 +17,12 @@ class Transformer(nn.Module):
         assert dim_embedding % self.dim_head == 0, (
            "dim_embedding must be divisible by dim_head"
             )
+
+        #Dropouts
+        self.emb_dropout   = nn.Dropout(dropout)
+        self.attn_dropout  = nn.Dropout(dropout)   # on attention weights
+        self.resid_dropout = nn.Dropout(dropout)   # on attention output
+        self.ffn_dropout   = nn.Dropout(dropout)   # inside + after FFN
         
         #Atention
         self.Q = nn.Linear(dim_embedding, self.dim_head * self.num_heads) #d_q need to be = d_k
@@ -36,7 +42,7 @@ class Transformer(nn.Module):
         # Add positional embeddings
         seq_len = x.size(1)
         pos = torch.arange(seq_len, device=x.device).unsqueeze(0)
-        x = x + self.positional_embeddings(pos)
+        x =self.emb_dropout(x + self.positional_embeddings(pos))
 
         #Q, K, V matrices
         Q=self.Q(x)
@@ -56,7 +62,7 @@ class Transformer(nn.Module):
         #substits the values of the attention that look to the future by -inf, so the softmax will give 0 to those values
         attention_map = attention_map.masked_fill(casual_mask, float('-inf'))
 
-        attention_weights = softmax(attention_map, dim=-1)
+        attention_weights = self.attn_dropout(softmax(attention_map, dim=-1))
 
         output=attention_weights @ v_reshaped
 
@@ -64,7 +70,7 @@ class Transformer(nn.Module):
         output_reshaped_back= output.transpose(1, 2).contiguous().view(output.size(0), -1, self.dim_head * self.num_heads) 
         
         # Project back to the original embedding dimension
-        output_projection = self.output_projection(output_reshaped_back)
+        output_projection = self.resid_dropout(self.output_projection(output_reshaped_back))
 
         residual_connection = x + output_projection
 
@@ -78,14 +84,16 @@ class Transformer(nn.Module):
 
     def feed_forward_network(self, x):
         # Feed-forward network dim=64 -> 256 -> 64; similiar to the MLP model, but with residual connection and layer normalization
-        ffn_output = self.ffn1(x)
+        h = nn.functional.relu(self.ffn1(x))
 
-        ffn_output = nn.ReLU()(ffn_output)
+        #Dropout after first layer
+        h = self.ffn_dropout(h)
 
-        ffn_output = self.ffn2(ffn_output)
-
-        ffn_output= ffn_output + x # Residual connection
-
-        ffn_output_f = self.norm_ffn(ffn_output) # Second layer normalization
+        h = self.ffn2(h)
+        
+        #Dropout after second layer
+        h = self.ffn_dropout(h)
+                                # Residual connection
+        ffn_output_f = self.norm_ffn(h + x) # Second layer normalization
 
         return ffn_output_f

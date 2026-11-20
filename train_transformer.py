@@ -8,13 +8,14 @@ import math
 import os
 import matplotlib.pyplot as plt
 from protgen.data.make_data import IGNORE_INDEX
+from torch.optim.lr_scheduler import LambdaLR
 
 #Hyperparameters
 DIM_EMBEDDING = 256
 NUM_HIDDEN = 1024
 BATCH_SIZE = 16
-NUM_EPOCHS = 10
-LEARNING_RATE = 0.001
+NUM_EPOCHS = 15
+DROPOUT= 0.1
 
 #Load the datasets
 train_data = ProteinDataset(path_to_data="./data/train.csv")
@@ -24,8 +25,14 @@ test_data = ProteinDataset(path_to_data="./data/test.csv")
 # creation of checkpoints directory if it doesn't exist
 os.makedirs("checkpoints/transformer", exist_ok=True)
 
+# From Transformer paper "Atention is all you need" eq.3 for varing learning rate
+def noam(d_model, warmup):
+    def f(step):
+        step = max(step, 1)
+        return d_model ** -0.5 * min(step ** -0.5, step * warmup ** -1.5)
+    return f
 
-def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNING_RATE, num_epochs=20,seed =67):
+def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, num_epochs=20,seed =67):
 
     torch.manual_seed(seed) # for reproducibility ;)
 
@@ -38,8 +45,8 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
             torch.cuda.manual_seed_all(seed)
 
         
-    print(f"Is bf16 suported? {torch.cuda.is_bf16_supported()}")
     print(f"Training on: {device}")
+    print(f"Is bf16 suported? {torch.cuda.is_bf16_supported()}")
 
     # DataLoaders
      # ---------------- DATALOADERS ---------------- #
@@ -66,7 +73,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
     ckpt_path = (
         f"checkpoints/transformer/"
         f"emb{dim_embedding}_hid{num_hidden}_"
-        f"batch{batch_size}_lr{learning_rate}_seed{seed}.pt"
+        f"batch{batch_size}_drp{dropout}_seed{seed}.pt"
     )
     # store loss and accuracy for information
     train_losses, val_losses, train_accs, val_accs = (
@@ -79,14 +86,25 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
     #Initialize transformer model 
     transformer= Transformer(
         dim_embedding=dim_embedding,
-        num_hidden=num_hidden
+        num_hidden=num_hidden,
+        dropout=dropout
         ).to(device)
 
     #Loss function
     cross_entropy_loss = nn.CrossEntropyLoss(ignore_index=-1) #ignore padding tokens
 
-    optimizer = optim.Adam(transformer.parameters(), lr=learning_rate)
 
+    # Warmup 
+    steps_per_epoch = len(train_loader)
+    total_steps = steps_per_epoch * num_epochs
+    warmup_steps = int(0.05 * total_steps)   # 5-10% of total
+    print(f"Steps per epoch: {steps_per_epoch} \nTotal steps: {total_steps} \nWarmup steps (5% of Total steps): {warmup_steps} " )
+    
+    # betas and eps from "Atention is all you need"
+    optimizer = optim.AdamW(transformer.parameters(), lr=1.0,
+                       betas=(0.9, 0.98), eps=1e-9, weight_decay=0.01)
+    scheduler = LambdaLR(optimizer, noam(dim_embedding, warmup=warmup_steps))
+    
     #Training loop
     best_val_loss = float("inf")
     best_epoch = 0
@@ -115,7 +133,9 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
 
                 loss.backward()
 
+            # Optimizer step followed by learning rate update
             optimizer.step()
+            scheduler.step()
 
             valid_tokens = (
                     targets != IGNORE_INDEX
@@ -167,7 +187,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,learning_rate=LEARNI
                                 "dim_embedding": dim_embedding,
                                 "hidden_units": num_hidden,
                                 "epoch": best_epoch,
-                                "lr": learning_rate,
+                                "dropout": dropout,
                                 "loss": best_val_loss,
                             },
                             ckpt_path,
