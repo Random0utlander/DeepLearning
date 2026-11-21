@@ -8,9 +8,15 @@ class Transformer(nn.Module):
         # see if it necessary to add dropout in case of overfitting, but for now I will not add it
         super().__init__()
 
-
         self.embeddings = nn.Embedding(vocab_size, dim_embedding, padding_idx=0)
-        self.positional_embeddings = nn.Embedding(max_seq_len, dim_embedding)
+        pe=torch.zeros(max_seq_len, dim_embedding)
+        positional_encoding= torch.arange(0, max_seq_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, dim_embedding, 2) * -(math.log(10000.0) / dim_embedding))
+        pe[:, 0::2] = torch.sin(positional_encoding * div_term)
+        pe[:, 1::2] = torch.cos(positional_encoding * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('positional_embeddings', pe)
+
         self.dim_head = dim_head
         self.num_heads = dim_embedding // self.dim_head
         
@@ -41,8 +47,7 @@ class Transformer(nn.Module):
         x = self.embeddings(x)
         # Add positional embeddings
         seq_len = x.size(1)
-        pos = torch.arange(seq_len, device=x.device).unsqueeze(0)
-        x =self.emb_dropout(x + self.positional_embeddings(pos))
+        x =self.emb_dropout(x + self.positional_embeddings[:, :seq_len, :])
 
         #Q, K, V matrices
         Q=self.Q(x)
