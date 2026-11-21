@@ -9,7 +9,7 @@ import math
 
 class Classifier(nn.Module):
 
-    def __init__(self, backbone, num_features=129*12, num_hidden=128, num_output=3):
+    def __init__(self, backbone, num_features=embed_dim, num_hidden=128, num_output=3):
         super(Classifier, self).__init__()  
         
         self.backbone = backbone #Transformer 
@@ -38,10 +38,20 @@ class Classifier(nn.Module):
     
     def forward(self, x):
         with torch.no_grad():    
-            self.backbone(x)
-        hidden = self._captured["hidden"]
-        x = hidden.flatten(start_dim=1)
-        x = F.linear(x, self.W_1, self.b_1)
+            self.backbone(x)  
+            
+        hidden = self._captured["hidden"] #batch_size x seq_len x embed_dim
+        seq_len = hidden.size(1)
+        positions = torch.arange(seq_len, device=hidden.device) # vector [0, 1, 2, 3, 4]
+        lengths = (x != 0).sum(dim=1)
+        mask = (positions[None, :] < lengths[:, None]).unsqueeze(-1).float()
+        #True or False, size (batch_size x seq_len x 1)
+
+        pooled = (hidden * mask).sum(dim=1) / lengths[:, None].float()
+
+        # so batch_size x 129 x
+        #x = hidden.flatten(start_dim=1)
+        x = F.linear(pooled, self.W_1, self.b_1)
         x = self.activation(x)
         x = F.linear(x, self.W_2, self.b_2)        
         return x
