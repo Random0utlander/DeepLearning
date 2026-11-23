@@ -50,6 +50,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim
 
         
     print(f"Training on: {device}")
+    print(torch.cuda.get_device_name(0))
     print(f"Is bf16 suported? {torch.cuda.is_bf16_supported()}")
 
     # DataLoaders
@@ -294,8 +295,7 @@ def test_transformer(ckpt_path):
 
 if __name__ == "__main__":
     
-    print(torch.cuda.get_device_name(0))
-    print(torch.cuda.is_bf16_supported())
+
     
     transformer, train_losses, val_losses, ckpt_path = train_transformer(
         dim_embedding=DIM_EMBEDDING,
