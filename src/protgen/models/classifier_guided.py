@@ -9,10 +9,10 @@ import math
 
 class Classifier(nn.Module):
 
-    def __init__(self, backbone, num_features=embed_dim, num_hidden=128, num_output=3):
+    def __init__(self, backbone, num_features, num_hidden=128, num_output=3):
         super(Classifier, self).__init__()  
         
-        self.backbone = backbone #Transformer 
+        self.backbone = backbone #Transformer as base
 
         # input layer
         self.W_1 = Parameter(init.xavier_normal_(torch.Tensor(num_hidden, num_features)))
@@ -23,6 +23,7 @@ class Classifier(nn.Module):
         # define activation function in constructor
         self.activation = torch.nn.ELU()
 
+        #freeze parameters of Transformer
         for p in self.backbone.parameters():
             p.requires_grad = False
 
@@ -36,14 +37,23 @@ class Classifier(nn.Module):
         self.backbone.eval()
         return self
     
-    def forward(self, x):
+    def forward(self, x, lengths=None):
+
+        #pass input through Transformer without optimizing the parameters
         with torch.no_grad():    
             self.backbone(x)  
-            
+
+        #save the intermediate vectors from the transformer pass
+        #to pass through the classifier later 
         hidden = self._captured["hidden"] #batch_size x seq_len x embed_dim
         seq_len = hidden.size(1)
-        positions = torch.arange(seq_len, device=hidden.device) # vector [0, 1, 2, 3, 4]
-        lengths = (x != 0).sum(dim=1)
+        positions = torch.arange(seq_len, device=hidden.device) 
+
+        if lengths is None:
+            lengths = (x != 0).sum(dim=1)
+        lengths = lengths.clamp(min=1)
+
+
         mask = (positions[None, :] < lengths[:, None]).unsqueeze(-1).float()
         #True or False, size (batch_size x seq_len x 1)
 
