@@ -10,6 +10,7 @@ from protgen.data import AA, FAMILIES, IGNORE_INDEX, special_tokens
 from protgen.models.classifier_guided import Classifier
 from protgen.models.transformer import Transformer
 
+NUM_EPOCHS = 5
 
 #Load the datasets
 train_data = ProteinDataset(path_to_data="./data/train.csv")
@@ -17,22 +18,28 @@ val_data = ProteinDataset(path_to_data="./data/val.csv")
 test_data = ProteinDataset(path_to_data="./data/test.csv")
 
 
+# Load the best MLP model
+best_transformer = torch.load("./src/protgen/models/transformer_best.pt", weights_only=True)
+
 #Create the MLP model 
-transformer = Transformer()
+transformer = Transformer(
+        dim_embedding=best_transformer["dim_embedding"],
+        num_hidden=best_transformer["hidden_units"],
+        dim_head=best_transformer["head_dim"],
+        dropout=best_transformer["dropout"]
+    )
 
-#TODO: change to a trained transformer here
-
-classifier = Classifier(transformer)
+classifier = Classifier(transformer,num_features=best_transformer["dim_embedding"])
 
 #Optimizer function
 optimizer = optim.Adam(classifier.parameters(), lr=0.001)
 
 #Accuracy function
-def accuracy(ys, ts):
+def accuracy(x, y):
     #Finding the token with the highest probability for each sample in the batch
-    predictions = torch.argmax(ys, dim=1)
+    predictions = torch.argmax(x, dim=1)
     #Comparing with the target and counting the number of correct predictions
-    correct_prediction = (predictions == ts).sum().item()
+    correct_prediction = (predictions == y).sum().item()
     # Return counter of correct predictions 
     return float(correct_prediction)
 
@@ -50,24 +57,22 @@ val_loader = DataLoader(val_data, batch_size=512, shuffle=False)
 test_loader = DataLoader(test_data, batch_size=512, shuffle=False)
 
 
-# number of training passses
-num_epochs = 5
+
+
 # store loss and accuracy for information
 train_losses, val_losses, test_losses, train_accs, val_accs, test_accs = [], [], [], [], [], []
 
 
-print(f"Training for {num_epochs} epochs...\n Starting Loss should be around ln(23) ≈ 3.1 for the first epoch")
+print(f"Training for {NUM_EPOCHS} epochs...")
 # training loop
-for e in range(num_epochs):
+for e in range(NUM_EPOCHS):
     
     #-----------------TRAINING-----------------------#
-
-    print("here")
     classifier.train()  # set model to training mode
 
     batch_train_loss, batch_train_acc, batch_count, num_examples = 0, 0, 0, 0
 
-    for x_train_batch, targets_train_batch, y, _ in train_loader:
+    for x_train_batch, _, y, _ in train_loader:
         # zeroize accumulated gradients in parameters
         optimizer.zero_grad()
         # predict by running forward pass
@@ -92,16 +97,16 @@ for e in range(num_epochs):
 
     #-----------------VALIDATION-----------------------#
 
-    mlp.eval()  # set model to evaluation mode
+    classifier.eval()  # set model to evaluation mode
     
     with torch.no_grad():  # disable gradient computation for validation
         batch_val_loss, batch_val_acc, batch_count, num_examples = 0, 0, 0, 0
-        for x_val_batch, targets_val_batch in val_loader:    
+        for x_val_batch, _, y,_ in val_loader:    
             # predict with validation input
-            val_output = mlp(x_val_batch)
+            val_output = classifier(x_val_batch)
             # compute loss and accuracy
-            batch_val_loss += F.cross_entropy(val_output, targets_val_batch, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
-            batch_val_acc += accuracy(val_output, targets_val_batch)
+            batch_val_loss += F.cross_entropy(val_output, y, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
+            batch_val_acc += accuracy(val_output, y)
             batch_count += 1
             num_examples += x_val_batch.size(0)
 
@@ -121,26 +126,26 @@ for e in range(num_epochs):
                                      val_accs[-1]))
     
 #Save the model?
-torch.save(mlp.state_dict(), "./state_dict.pt")
+torch.save(classifier.state_dict(), "./src/protgen/models/classifier.pt")
 
 
-for e in range(num_epochs) :
+for e in range(NUM_EPOCHS) :
      #-----------------TESTING-----------------------#
      
          #mlp.test()  # set model to test mode
          
          with torch.no_grad():  # disable gradient computation for validation
              batch_test_loss, batch_test_acc, batch_count, num_examples = 0, 0, 0, 0
-             for x_test_batch, targets_test_batch in test_loader:    
+             for x_test_batch, _, y,_ in test_loader:    
                  
-                 test_output = mlp(x_test_batch)
+                 test_output = classifier(x_test_batch)
 
                 #store this later 
 
                  # compute loss and accuracy
-                 batch_test_loss += F.cross_entropy(test_output, targets_val_batch, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
+                 batch_test_loss += F.cross_entropy(test_output, y, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
 
-                 batch_test_acc += accuracy(test_output, targets_test_batch)
+                 batch_test_acc += accuracy(test_output, y)
                  batch_count += 1
                  num_examples += x_test_batch.size(0)
      
