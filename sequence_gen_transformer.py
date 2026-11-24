@@ -1,4 +1,4 @@
-import torch 
+import torch
 import pandas as pd
 from torch import nn
 import torch.nn.functional as F
@@ -15,19 +15,22 @@ BATCH_SIZE = 500
 MAX_LENGTH = 129
 
 # Load the best MLP model
-best_transformer = torch.load("./src/protgen/models/transformer_best.pt", weights_only=True)
+best_transformer = torch.load(
+    "./src/protgen/models/transformer_best.pt", weights_only=True
+)
 
 # i forgot to add vocab size to the saved model, so we need to calculate it here
-VOCAB_SIZE = len(special_tokens) + len(AA) 
+VOCAB_SIZE = len(special_tokens) + len(AA)
 
-#Create the MLP model 
+# Create the MLP model
 transformer = Transformer(
-        vocab_size=VOCAB_SIZE,
-        dim_embedding=best_transformer["dim_embedding"],
-        num_hidden=best_transformer["hidden_units"],
-        dim_head=best_transformer["head_dim"],
-        dropout=best_transformer["dropout"]
-    )
+    vocab_size=VOCAB_SIZE,
+    dim_embedding=best_transformer["dim_embedding"],
+    num_hidden=best_transformer["hidden_units"],
+    dim_head=best_transformer["head_dim"],
+    dropout=best_transformer["dropout"],
+    max_seq_len=MAX_LENGTH,
+)
 
 # Load the weights of the best model into the Transformer instance
 transformer.load_state_dict(best_transformer["weights"])
@@ -35,19 +38,22 @@ transformer.load_state_dict(best_transformer["weights"])
 # Set the model to evaluation mode
 transformer.eval()
 
-#Create a BATCH_SIZE*MAX_LENGTH input matrix and first colum to o <BOS> (1)
-input = torch.zeros(BATCH_SIZE,MAX_LENGTH, dtype=int)
-input[:,0]=1
+# Create a BATCH_SIZE*MAX_LENGTH input matrix and first colum to o <BOS> (1)
+input = torch.zeros(BATCH_SIZE, MAX_LENGTH, dtype=int)
+input[:, 0] = 1
 
 with torch.no_grad():
-    for i in range(1, MAX_LENGTH): #index runs from 1 to 128 inclusive
-        logits = transformer(input) #Re-feed next column
-        probabilities = torch.softmax(logits[:, i-1, :], dim=-1) #Logits -> Probabilities
-        input[:, i] = torch.multinomial(probabilities, num_samples=1).squeeze(1)  #Sample Column along all sequences and update input
+    for i in range(1, MAX_LENGTH):  # index runs from 1 to 128 inclusive
+        logits = transformer(input)  # Re-feed next column
+        probabilities = torch.softmax(
+            logits[:, i - 1, :], dim=-1
+        )  # Logits -> Probabilities
+        input[:, i] = torch.multinomial(probabilities, num_samples=1).squeeze(
+            1
+        )  # Sample Column along all sequences and update input
 
 
-
-#Mask all the positions in front of the first <EOS> (2) inclusive
+# Mask all the positions in front of the first <EOS> (2) inclusive
 mask = (input == 2).cumsum(dim=1) > 0
 output = input.masked_fill(mask, 0)
 
@@ -62,8 +68,14 @@ def decode(tokens):
     vocab = dict(zip(total_tokens, range(len(total_tokens))))
     idx_to_vocab = {index: token for token, index in vocab.items()}
     residues = set(AA)
-    return "".join(idx_to_vocab[int(token)] for token in tokens
-                    if idx_to_vocab.get(int(token)) in residues)
+    return "".join(
+        idx_to_vocab[int(token)]
+        for token in tokens
+        if idx_to_vocab.get(int(token)) in residues
+    )
+
 
 sequences = [decode(seq) for seq in output]
-pd.DataFrame(sequences, columns=["sequence"]).to_csv("./results/sequences/transformer_generated_sequences.csv", index=False)
+pd.DataFrame(sequences, columns=["sequence"]).to_csv(
+    "./results/sequences/transformer_generated_sequences.csv", index=False
+)
