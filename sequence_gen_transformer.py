@@ -35,20 +35,21 @@ transformer.load_state_dict(best_transformer["weights"])
 # Set the model to evaluation mode
 transformer.eval()
 
+#Create a BATCH_SIZE*MAX_LENGTH input matrix and first colum to o <BOS> (1)
 input = torch.zeros(BATCH_SIZE,MAX_LENGTH, dtype=int)
 input[:,0]=1
 
+with torch.no_grad():
+    for i in range(1, MAX_LENGTH): #index runs from 1 to 128 inclusive
+        logits = transformer(input) #Re-feed next column
+        probabilities = torch.softmax(logits[:, i-1, :], dim=-1) #Logits -> Probabilities
+        input[:, i] = torch.multinomial(probabilities, num_samples=1).squeeze(1)  #Sample Column along all sequences and update input
 
-logits = transformer(input)
 
-probabilities = torch.softmax(logits, dim=-1)
 
-tokens = torch.zeros_like(input)
-
-for i in range(MAX_LENGTH):
-    sampled_tokens = torch.multinomial(probabilities[:,i,:], num_samples=1)
-    tokens[:, i] = sampled_tokens[:,0]
-
+#Mask all the positions in front of the first <EOS> (2) inclusive
+mask = (input == 2).cumsum(dim=1) > 0
+output = input.masked_fill(mask, 0)
 
 
 def decode(tokens):
@@ -64,6 +65,5 @@ def decode(tokens):
     return "".join(idx_to_vocab[int(token)] for token in tokens
                     if idx_to_vocab.get(int(token)) in residues)
 
-sequences = [decode(seq) for seq in tokens]
-print(f"Decoded sequences: {sequences}")
+sequences = [decode(seq) for seq in output]
 pd.DataFrame(sequences, columns=["sequence"]).to_csv("./results/sequences/transformer_generated_sequences.csv", index=False)
