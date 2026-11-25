@@ -25,7 +25,7 @@ val_data = ProteinDataset(path_to_data="./data/val.csv")
 test_data = ProteinDataset(path_to_data="./data/test.csv")
 
 # creation of checkpoints directory if it doesn't exist
-os.makedirs("checkpoints/transformer", exist_ok=True)
+os.makedirs("checkpoints/transformer_cfg", exist_ok=True)
 
 # From Transformer paper "Atention is all you need" eq.3 for varing learning rate
 def noam(d_model, warmup):
@@ -77,11 +77,11 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim
     
     # Define the checkpoint path for saving the model; 
     ckpt_path = (
-        f"checkpoints/transformer/"
+        f"checkpoints/transformer_cfg/"
         f"emb{dim_embedding}_hid{num_hidden}_"
         f"batch{batch_size}_drp{dropout}_seed{seed}.pt"
     )
-    if best : ckpt_path = "./src/protgen/models/transformer_best.pt"
+    if best : ckpt_path = "./src/protgen/models/transformer_cfg_best.pt"
     # store loss and accuracy for information
     train_losses, val_losses, train_accs, val_accs = (
             [],
@@ -134,8 +134,8 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim
             family_ids = family_ids.to(device, non_blocking=True)
             label_dropout = 0.1  # Dropout rate for labels, can be adjusted based on experimentation
             mask= torch.rand(family_ids.shape, device=family_ids.device) < label_dropout
-            familiy_ids_dropped = family_ids.clone()
-            familiy_ids_dropped[mask] = 3  # 3 as the index for the null family
+            family_ids_dropped = family_ids.clone()
+            family_ids_dropped[mask] = 3  # 3 as the index for the null family
 
             with torch.autocast(
                 device_type=device.type,
@@ -143,7 +143,7 @@ def train_transformer(dim_embedding, num_hidden, batch_size,dropout=DROPOUT, dim
             ):
 
                 optimizer.zero_grad()
-                logits= transformer(x, familiy_ids_dropped) # (batch of proteins, max_seq_len, vocab_size)
+                logits= transformer(x, family_ids_dropped) # (batch of proteins, max_seq_len, vocab_size)
                 logits_reshaped= logits.reshape(-1, logits.size(-1)) # (batch of proteins * max_seq_len, vocab_size)
 
                 targets= x_shifted.reshape(-1)
@@ -249,12 +249,14 @@ def test_transformer(ckpt_path):
     test_loader = DataLoader(test_data, batch_size=512,shuffle=False)
 
     #Load best stat_dict
-    ckpt = torch.load(ckpt_path, weights_only=True)
+    ckpt = torch.load(ckpt_path, weights_only=True, map_location="cpu")
 
     #Initialize Transformer
     transformer = Transformer_cfg(
           dim_embedding=ckpt["dim_embedding"],
-          num_hidden=ckpt["hidden_units"]
+          num_hidden=ckpt["hidden_units"],
+          dim_head=ckpt["head_dim"],
+          dropout=ckpt["dropout"]
     )
     
     transformer.load_state_dict(ckpt["weights"])
@@ -266,11 +268,17 @@ def test_transformer(ckpt_path):
     test_acc, test_loss = 0, 0
 
     # -----------------TESTING-----------------------#
+    device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    transformer.to(device)
+
     transformer.eval()
     with torch.no_grad():
+
         test_loss_accumulated, num_batches, test_accuracy, num_tokens = 0.0, 0, 0, 0
         for x, x_shifted, family_ids, _ in test_loader:
-            family_ids = family_ids.to(device, non_blocking=True)
+            x= x.to(device, non_blocking= True)
+            x_shifted= x_shifted.to(device, non_blocking= True)
+            family_ids = family_ids.to(device, non_blocking= True)
             logits= transformer(x, family_ids) # (batch of proteins, max_seq_len, vocab_size)
             logits_reshaped= logits.reshape(-1, logits.size(-1)) # (batch of proteins * max_seq_len, vocab_size)
 
@@ -340,4 +348,5 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss")
     plt.legend()
-    plt.savefig("results/transformer/transformer_loss_curves.png")
+    os.makedirs("results/transformer_cfg", exist_ok= True)
+    plt.savefig("results/transformer_cfg/transformer_loss_curves.png")
