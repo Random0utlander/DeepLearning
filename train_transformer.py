@@ -246,7 +246,8 @@ def test_transformer(ckpt_path):
     #Initialize Transformer
     transformer = Transformer(
           dim_embedding=ckpt["dim_embedding"],
-          num_hidden=ckpt["hidden_units"]
+          num_hidden=ckpt["hidden_units"],
+          dim_head=ckpt["head_dim"]
     )
     
     transformer.load_state_dict(ckpt["weights"])
@@ -257,10 +258,16 @@ def test_transformer(ckpt_path):
     
     test_acc, test_loss = 0, 0
     # -----------------TESTING-----------------------#
+    device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    transformer.to(device)
+
     transformer.eval()
     with torch.no_grad():
         test_loss_accumulated, num_batches, test_accuracy, num_tokens = 0.0, 0, 0, 0
         for x, x_shifted, _ , _ in test_loader:
+            x = x.to(device, non_blocking=True)
+            x_shifted = x_shifted.to(device, non_blocking=True)
+
             logits= transformer(x) # (batch of proteins, max_seq_len, vocab_size)
             logits_reshaped= logits.reshape(-1, logits.size(-1)) # (batch of proteins * max_seq_len, vocab_size)
 
