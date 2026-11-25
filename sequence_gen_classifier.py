@@ -12,7 +12,7 @@ val_data = ProteinDataset(path_to_data="./data/val.csv")
 val_loader = DataLoader(val_data, batch_size=32)
 BATCH_SIZE = 30
 MAX_LENGTH = 129
-Lambda = 0
+Lambda = 0 # Strength of Guidance (0 = Pure Transformer Generation)
 FAM = 0
 print(f"Generated guided sequence to family to: {FAMILIES[FAM]}")
 
