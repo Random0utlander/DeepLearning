@@ -29,6 +29,8 @@ transformer = Transformer(
         dropout=best_transformer["dropout"]
     )
 
+transformer.load_state_dict(best_transformer["weights"])   # <- the missing line
+
 classifier = Classifier(transformer,num_features=best_transformer["dim_embedding"])
 
 #Optimizer function
@@ -129,28 +131,24 @@ for e in range(NUM_EPOCHS):
 torch.save(classifier.state_dict(), "./src/protgen/models/classifier.pt")
 
 
-for e in range(NUM_EPOCHS) :
-     #-----------------TESTING-----------------------#
-     
-         #mlp.test()  # set model to test mode
          
-         with torch.no_grad():  # disable gradient computation for validation
-             batch_test_loss, batch_test_acc, batch_count, num_examples = 0, 0, 0, 0
-             for x_test_batch, _, y,_ in test_loader:    
-                 
-                 test_output = classifier(x_test_batch)
+with torch.no_grad():  # disable gradient computation for validation
+    batch_test_loss, batch_test_acc, batch_count, num_examples = 0, 0, 0, 0
+    for x_test_batch, _, y,_ in test_loader:    
+        
+        test_output = classifier(x_test_batch)
 
-                #store this later 
+    #store this later 
 
-                 # compute loss and accuracy
-                 batch_test_loss += F.cross_entropy(test_output, y, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
+        # compute loss and accuracy
+        batch_test_loss += F.cross_entropy(test_output, y, ignore_index=IGNORE_INDEX).item()*x_val_batch.size(0)
 
-                 batch_test_acc += accuracy(test_output, y)
-                 batch_count += 1
-                 num_examples += x_test_batch.size(0)
-     
-         # store loss and accuracy
-         test_losses.append(batch_test_loss / (num_examples))
-         test_accs.append(batch_val_acc / (num_examples))
+        batch_test_acc += accuracy(test_output, y)
+        batch_count += 1
+        num_examples += x_test_batch.size(0)
+
+# store loss and accuracy
+test_losses.append(batch_test_loss / (num_examples))
+test_accs.append(batch_test_acc / (num_examples))
 
 

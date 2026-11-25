@@ -59,7 +59,7 @@ class Classifier(nn.Module):
 
         pooled = (hidden * mask).sum(dim=1) / lengths[:, None].float()
 
-        # so batch_size x 129 x
+        # so batch_size x 129 x 3
         #x = hidden.flatten(start_dim=1)
         x = F.linear(pooled, self.W_1, self.b_1)
         x = self.activation(x)

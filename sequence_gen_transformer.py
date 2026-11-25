@@ -9,12 +9,12 @@ from protgen.data.make_tokens import TokenDataset
 from torch.utils.data import DataLoader
 from protgen.data import AA, FAMILIES, IGNORE_INDEX, special_tokens
 import matplotlib.pyplot as plt
-import os
+
 
 BATCH_SIZE = 500
 MAX_LENGTH = 129
 
-# Load the best MLP model
+# Load the best Transformer model
 best_transformer = torch.load(
     "./src/protgen/models/transformer_best.pt", weights_only=True
 )
@@ -22,7 +22,7 @@ best_transformer = torch.load(
 # i forgot to add vocab size to the saved model, so we need to calculate it here
 VOCAB_SIZE = len(special_tokens) + len(AA)
 
-# Create the MLP model
+# Create the Transformer model
 transformer = Transformer(
     vocab_size=VOCAB_SIZE,
     dim_embedding=best_transformer["dim_embedding"],
@@ -53,9 +53,10 @@ with torch.no_grad():
         )  # Sample Column along all sequences and update input
 
 
-# Mask all the positions in front of the first <EOS> (2) inclusive
-mask = (input == 2).cumsum(dim=1) > 0
-output = input.masked_fill(mask, 0)
+# Mask all the positions in front of the first <EOS> (2) 
+is_two = (input == 2).long()
+after_two = (is_two.cumsum(dim=1) - is_two )> 0
+output = input.masked_fill(after_two, 0)
 
 
 def decode(tokens):
